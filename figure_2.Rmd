@@ -1,0 +1,35 @@
+---
+title: 'Figure 3'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir='/local1/USERS/jfleck/data/PUBLIC_ORGANOIDS')
+```
+
+This notebook describes the code to reproduce the main analyses from figure 2 of the manuscript. First we import the necessary packages.
+
+```{r message=FALSE, warning=FALSE, results='hide'}
+library(voxhunt)
+library(tidyverse)
+library(Seurat)
+```
+
+Now we load the data. The loaded seurat object contains the neuronal popultions of the datasets shown in the manuscript. We further subset the ones shown in figure 2.
+
+```{r}
+load_aba_data('voxhunt_data/')
+```
+
+We can see that `cluster` already captures the different neuronal types we are interested in. Now we select some structure markers.
+
+```{r}
+struct_markers <- structure_markers('E13', 'custom_2')
+genes_use <- struct_markers %>% 
+    group_by(group) %>% 
+    top_n(15, auc) %>% 
+    pull(gene) %>% unique()
+print(head(genes_use))
+```
+

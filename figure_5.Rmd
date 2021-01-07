@@ -1,0 +1,23 @@
+---
+title: "Figure_4"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir='~/projects/VoxHunt/')
+```
+
+This notebook describes the code to reproduce the main analyses from figure 4 of the manuscript. First we import the necessary packages.
+
+```{r}
+library(voxhunt)
+library(tidyverse)
+library(Seurat)
+```
+
+Now we load the data. The loaded seurat object contains C1 scATAC-seq data from organoid cortex.
+
+```{r}
+ctx_atac <- read_rds('data/atac/c1_ctx_srt.rds')
+```

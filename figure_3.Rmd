@@ -1,0 +1,109 @@
+---
+title: 'Figure 3'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir='/local1/USERS/jfleck/data/PUBLIC_ORGANOIDS')
+```
+
+This notebook describes the code to reproduce the main analyses from figure 3 of the manuscript. First we import the necessary packages.
+
+```{r message=FALSE, warning=FALSE, results='hide'}
+library(voxhunt)
+library(tidyverse)
+library(Seurat)
+```
+
+Now we load the data. The loaded seurat object contains the neuronal popultions of the datasets shown in the manuscript. We further subset the ones shown in figure 2.
+
+```{r}
+load_aba_data('voxhunt_data/')
+neurons <- read_rds('combined_neurons_srt.rds')
+neurons <- subset(neurons, orig.ident%in%c('cerebral', 'hCS', 'hSS', 'tanaka_thalamus'))
+neurons <- subset(neurons, 
+    cluster%in%c('mesen_ex_cerebral', 'mesen_in_cerebral', 'ctx_ex_cerebral', 
+        'ge_in_cerebral', 'dien_ex_cerebral', 'ge_hss', 'ctx_hcs', 'dien_tho')
+)
+print(unique(neurons$cluster))
+```
+
+We can see that `cluster` already captures the different neuronal types we are interested in. Now we select some structure markers.
+
+```{r}
+struct_markers <- structure_markers('E13', 'custom_2')
+genes_use <- struct_markers %>% 
+    group_by(group) %>% 
+    top_n(15, auc) %>% 
+    pull(gene) %>% unique()
+print(head(genes_use))
+```
+
+
+```{r, include=F, results='hide'}
+## Struct ape paper
+struct_names <- c(
+    'pallium',
+    'subpallium',
+    'preoptic telencephalon',
+    'hypothalamus',
+    'diencephalon',
+    'midbrain',
+    'hindbrain',
+    'NA'
+)
+
+struct_colors <- c(
+    '#ad1457',
+    '#7b1fa2',
+    '#5e35b1',
+    '#ba68c8',
+    '#303f9f',
+    '#0097a7',
+    '#43a047',
+    'gray'
+)
+names(struct_colors) <- struct_names
+```
+
+
+Now we run VoxHunt with the selected genes and plot the similarities to brain structures.
+
+```{r message=FALSE, warning=FALSE, fig.height=6, fig.width=6}
+neuron_voxmap <- voxel_map(
+    neurons, 
+    group_name='cluster', 
+    genes_use=genes_use, 
+    pseudobulk_groups=T
+)
+
+strct_cor <- summarize_groups(neuron_voxmap) %>% 
+    dplyr::filter(custom_2!='medullary hindbrain') %>% 
+    dplyr::mutate(struct_name=case_when(
+        str_detect(custom_2, 'hindbrain') ~ 'hindbrain',
+        str_detect(custom_4, 'septum|subpall|striatum|amygda|telencephalic') ~ 'subpallium',
+        str_detect(custom_2, 'telen') ~ 'pallium',
+        TRUE ~ custom_2
+    )) %>% 
+    dplyr::mutate(struct_name=factor(struct_name, levels=struct_names)) %>% 
+    dplyr::arrange(struct_name) %>% 
+    dplyr::mutate(custom_4=factor(custom_4, levels=unique(.$custom_4))) %>% 
+    dplyr::group_by(group, custom_4, struct_name) %>% 
+    dplyr::summarise(corr=mean(corr)) %>% 
+    dplyr::filter(!str_detect(custom_4, 'telencephalo')) 
+
+ggplot(strct_cor, aes(custom_4, corr, fill=struct_name)) +
+    geom_bar(stat='identity') +
+    facet_wrap(group~., scales = 'free', ncol=2) +
+    scale_fill_manual(values=struct_colors) +
+    theme_bw() +
+    theme(axis.text.x=element_blank(), axis.ticks.x=element_blank())
+```
+
+If we further run VoxHunt on a single cell level, we can assign each cell to the maximum correlating structure using `assign_cells()` we can then color the UMAP projection based on this assignment.
+
+
+
+
+
