@@ -1,0 +1,80 @@
+---
+title: "Figure 6"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir='/local1/USERS/jfleck/data/PUBLIC_ORGANOIDS')
+```
+
+This notebook reproduces the main analyses from figure 6 of the manuscript. First we import the necessary packages.
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+library(Seurat)
+library(tidyverse)
+library(patchwork)
+library(voxhunt)
+```
+
+## Ganglionic eminence
+
+Now we set up some colors and load the data. The loaded seurat object contains mitotic progenitors from Mayer et al. 2018.
+
+```{r}
+data("voxel_meta")
+# Subset E13.5 from meta
+e13_meta <- voxel_meta %>% 
+    filter(stage=='E13')
+# Seurat with mitotic precursors
+mayer_srt <- read_rds('2018_mayer_srt.rds')
+kanton_srt <- read_rds('m2org_srt.rds')
+ge_colors <- c('#9fa8da','#8e24aa', '#4a148c', 'lightgray')
+names(ge_colors) <- c('CGE', 'MGE', 'LGE', 'other')
+```
+
+The meta data already contains a column with the GE annotations we added for the manuscript by louvain clustering and assigning labels based on marker genes. We can plot that with the `voxel_meta`
+
+```{r, fig.height=2, fig.width=4}
+ggplot(e13_meta, 
+       aes(x, y, fill=ge_annot, alpha=!is.na(ge_annot) & ge_annot!='other')) +
+    geom_tile() +
+    scale_fill_manual(values=ge_colors, na.value='gray') +
+    theme_void() +
+    no_legend()
+```
+
+We can now map the primary data to these structures. To resolve the contrast between the GEs as well as possible, we use the GE markers reported in Mayer et al., which we already stored in the Seurat object.  
+
+
+```{r, fig.height=4, fig.width=5}
+ge_markers <- mayer_srt@misc$markers
+mayer_voxmap <- voxel_map(mayer_srt, group_name='region', genes_use=ge_markers)
+# Tweek annotation 
+mayer_voxmap$voxel_meta <- mayer_voxmap$voxel_meta %>% 
+    mutate(ge_annot=ifelse(is.na(ge_annot), 'other', ge_annot))
+plot_map(mayer_voxmap, view='slice', annotation_level = 'ge_annot', 
+    annotation_colors = ge_colors, slices=c(13,18))
+```
+
+In the same way, we can also map the organoid data. Here we found that we need some more genes to properly map the data, so 
+
+```{r}
+# Subset GE neurons
+kanton_ge_srt <- subset(kanton_srt, 
+    line=='H9' & celltype%in%c('mge_in', 'lge_in')
+)
+kanton_voxmap <- voxel_map(kanton_ge_srt, group_name='ge_substruct', genes_use=mayer_markers)
+# Tweek annotation again
+kanton_voxmap$voxel_meta <- kanton_voxmap$voxel_meta %>% 
+    mutate(ge_annot=ifelse(is.na(ge_annot), 'other', ge_annot))
+plot_map(kanton_voxmap, view='slice', annotation_level = 'ge_annot', 
+    annotation_colors = ge_colors, slices=c(13,18))
+
+
+```
+
+
+
+
+

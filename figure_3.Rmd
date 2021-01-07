@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir='/local1/USERS/jfleck/data/PUBLIC_ORGANOIDS')
 ```
 
-This notebook describes the code to reproduce the main analyses from figure 3 of the manuscript. First we import the necessary packages.
+This notebook reproduces the main analyses from figure 3 of the manuscript. First we import the necessary packages.
 
 ```{r message=FALSE, warning=FALSE, results='hide'}
 library(voxhunt)
@@ -70,7 +70,7 @@ names(struct_colors) <- struct_names
 
 Now we run VoxHunt with the selected genes and plot the similarities to brain structures.
 
-```{r message=FALSE, warning=FALSE, fig.height=6, fig.width=6}
+```{r message=FALSE, warning=FALSE, fig.height=4, fig.width=6}
 neuron_voxmap <- voxel_map(
     neurons, 
     group_name='cluster', 

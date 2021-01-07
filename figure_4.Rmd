@@ -5,12 +5,12 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir='~/projects/VoxHunt/')
+knitr::opts_knit$set(root.dir='/local1/USERS/jfleck/data/PUBLIC_ORGANOIDS')
 ```
 
-This notebook describes the code to reproduce the main analyses from figure 4 of the manuscript. First we import the necessary packages.
+This notebook reproduces the main analyses from figure 4 of the manuscript. First we import the necessary packages.
 
-```{r}
+```{r message=FALSE, warning=FALSE, results='hide'}
 library(voxhunt)
 library(tidyverse)
 library(Seurat)
@@ -19,8 +19,8 @@ library(Seurat)
 Now we load the data. The loaded seurat object contains the neuronal popultions of the datasets shown in the manuscript. We further subset the ones shown in figure 2.
 
 ```{r}
-load_aba_data('data/voxhunt_data/')
-neurons <- read_rds('data/combined_neurons_srt.rds')
+load_aba_data('voxhunt_data/')
+neurons <- read_rds('combined_neurons_srt.rds')
 neurons <- subset(neurons, orig.ident%in%c('cerebral', 'hCS', 'hSS', 'tanaka_thalamus'))
 neurons <- subset(neurons, 
     cluster%in%c('mesen_ex_cerebral', 'mesen_in_cerebral', 'ctx_ex_cerebral', 
@@ -37,31 +37,31 @@ genes_use <- struct_markers %>%
     group_by(group) %>% 
     top_n(10, auc) %>% 
     pull(gene) %>% unique()
-print(genes_use)
+print(head(genes_use))
 ```
 
 Now we run VoxHunt using these genes
 
-```{r}
+```{r, fig.height=3, fig.width=5}
 neuron_voxmap <- voxel_map(
     neurons, 
     group_name='cluster', 
     genes_use=genes_use
 )
-plot_map(neuron_voxmap)
+plot_map(neuron_voxmap) & no_legend()
 ```
 
 As shown in the figure, we can also plot coronal slices. We can first pick the slices from the annotated map.
 
-```{r}
-voxhunt::plot_annotation('E13', show_coordinates = T, show_legend = T) +
-    scale_fill_manual(values=struct_colors_custom2)
+```{r, fig.width=8, fig.height=3}
+voxhunt::plot_annotation('E13', show_coordinates = T, show_legend = T)
 ```
 
 Now we plot slices 6, 11, 23 and 28
 
-```{r}
-voxhunt::plot_map(neuron_voxmap, view='slice', slices=c(6, 11, 23, 28))
+```{r, fig.height=7, fig.width=5}
+voxhunt::plot_map(neuron_voxmap, view='slice', slices=c(6, 11, 23, 28)) & 
+    no_legend()
 ```
 
 
@@ -93,7 +93,7 @@ names(struct_colors) <- struct_names
 
 Now we can also assign each cell to the highest correlating structure, similar as shown in figure 2.
 
-```{r}
+```{r, fig.height=4, fig.width=6}
 cell_assign <- assign_cells(neuron_voxmap)
 cell_meta <- as_tibble(neurons@meta.data, rownames='cell') %>% 
     dplyr::select(-stage) %>% 
@@ -114,7 +114,7 @@ ggplot(cell_meta, aes(UMAP1, UMAP2, color=struct_name)) +
 ```
 
 
-```{r}
+```{r, fig.height=2, fig.width=4}
 ggplot(cell_meta, aes(cluster, fill=struct_name)) +
     geom_bar(position='fill') +
     coord_flip() +

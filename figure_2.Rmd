@@ -8,12 +8,13 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir='/local1/USERS/jfleck/data/PUBLIC_ORGANOIDS')
 ```
 
-This notebook describes the code to reproduce the main analyses from figure 2 of the manuscript. First we import the necessary packages.
+This notebook reproduces the main analyses from figure 2 of the manuscript. First we import the necessary packages.
 
 ```{r message=FALSE, warning=FALSE, results='hide'}
-library(voxhunt)
 library(tidyverse)
+library(patchwork)
 library(Seurat)
+library(voxhunt)
 ```
 
 Now we load the data. The loaded seurat object contains the neuronal popultions of the datasets shown in the manuscript. We further subset the ones shown in figure 2.
@@ -22,14 +23,66 @@ Now we load the data. The loaded seurat object contains the neuronal popultions 
 load_aba_data('voxhunt_data/')
 ```
 
-We can see that `cluster` already captures the different neuronal types we are interested in. Now we select some structure markers.
+We can plot annotations of the mouse brain at different timepoints with the `plot_annotation()` function:
+
+```{r, fig.height=3, fig.width=5}
+e11 <- voxhunt::plot_annotation('E11')
+e13 <- voxhunt::plot_annotation('E13')
+e15 <- voxhunt::plot_annotation('E15')
+e18 <- voxhunt::plot_annotation('E18')
+p4 <- voxhunt::plot_annotation('P4')
+p14 <- voxhunt::plot_annotation('P14')
+p28 <- voxhunt::plot_annotation('P28')
+p56 <- voxhunt::plot_annotation('P56')
+
+e11 + e13 + e15 + e18 + p4 + p14 + p28 + p56 
+```
+
+
+Since for each voxel, the expression of almost 2000 genes is registered, we can plot some common markers:
+
+```{r, fig.height=4, fig.width=6}
+marker_genes <- c('NEUROD6', 'EOMES', 'DCN', 'DLX1', 'DLX2', 
+                  'GBX2', 'OTX2', 'GATA3', 'PAX8')
+voxhunt::plot_expression('E15', marker_genes, slices=8:12) & no_legend()
+```
+
+We can also look for markers of specific brain structures:
+
+```{r, fig.height=4, fig.width=6}
+c4_markers <- structure_markers('E15', 'custom_4')
+hipp_markers <- c4_markers %>% 
+    filter(group=='hippocampus') %>% 
+    top_n(8, auc) %>% pull(gene)
+
+cb_markers <- c4_markers %>% 
+    filter(group=='cerebellar hemisphere') %>% 
+    top_n(8, auc) %>% pull(gene)
+
+p1 <- voxhunt::plot_expression(
+    'E15', 
+    hipp_markers,
+    nrow=2
+) & no_legend() 
+
+p2 <- voxhunt::plot_expression(
+    'E15', 
+    cb_markers,
+    nrow=2
+) & no_legend()
+
+p1 / p2 
+```
+
+As shown in figure 2e), we can do this DE analysis on different levels of annotation at all available developmental stages:
 
 ```{r}
-struct_markers <- structure_markers('E13', 'custom_2')
-genes_use <- struct_markers %>% 
+c2_markers <- structure_markers('P4', 'custom_2')
+top_markers <- c2_markers %>% 
     group_by(group) %>% 
-    top_n(15, auc) %>% 
-    pull(gene) %>% unique()
-print(head(genes_use))
+    top_n(1, auc) %>% 
+    pull(gene)
+
+voxhunt::plot_expression('P4', top_markers) & no_legend()
 ```
 
