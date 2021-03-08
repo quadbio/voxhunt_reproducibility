@@ -1,0 +1,87 @@
+---
+title: "Figure 7"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir='/links/groups/treutlein/USERS/jfleck/data/PUBLIC_ORGANOIDS/')
+```
+
+
+This notebook reproduces the main analyses from figure 7 of the manuscript. First we import the necessary packages.
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+library(Seurat)
+library(tidyverse)
+library(patchwork)
+library(voxhunt)
+```
+
+Now we set up some colors and load the data. The loaded seurat object contains the bulk RNA-seq data from the patterning screen. Each sample represents one organoid. We also do some feature selection with VoxHunt.
+
+```{r}
+data("voxel_meta")
+load_aba_data('voxhunt_data/')
+patscreen_data <- read_rds('patscreen_srt.rds')
+
+ps_names <- c(
+    'Ctrl_no_dose', 
+    'SHH_high', 'SHH_low', 
+    'CHIR_high', 'CHIR_low', 
+    'RSPO2_high', 'RSPO2_low', 
+    'RSPO3_high', 'RSPO3_low',
+    'SB_DM_high', 'SB_DM_low'
+)
+ps_colors <- c(
+    'gray', 
+    '#f57f17', '#ffc107', 
+    '#186a3b', '#28b463', 
+    '#c2185b', '#f48fb1',
+    '#512da8', '#9575cd',
+    '#2874a6', '#5dade2'
+)
+names(ps_colors) <- ps_names
+
+struct_markers <- structure_markers('E13', 'custom_2')
+genes_use <- struct_markers %>% 
+    group_by(group) %>% 
+    top_n(10, auc) %>% 
+    pull(gene) %>% unique()
+
+print(patscreen_data)
+
+```
+
+Now we perform PCA to get an impression how the samples are distributed.
+
+
+```{r, fig.height=4, fig.width=6}
+patscreen_data <- patscreen_data %>% FindVariableFeatures(nfeatures=2000) %>% ScaleData() %>% RunPCA(npcs=5)
+patscreen_data@reductions$pca@stdev
+DimPlot(patscreen_data, group.by='mor_dose', pt.size=4) +
+    scale_color_manual(values=ps_colors) +
+    no_legend() 
+```
+
+Now we map the data with VoxHunt.
+
+```{r, fig.height=6, fig.width=8}
+ps_map <- voxel_map(patscreen_data, stage='E11', genes_use = genes_use, group_name = 'morphogen')
+plot_map(ps_map)
+```
+
+Further, we'll have a closer look at the correlation patterns of RSPO2/3.
+
+```{r, fig.height=3, fig.width=8}
+rspo_data <- subset(patscreen_data, morphogen%in%c('RSPO2', 'RSPO3'))
+ps_map <- voxel_map(rspo_data, stage='E13', genes_use = genes_use, group_name = 'morphogen')
+plot_map(ps_map, slices = 6)
+```
+
+Lastly, we can look at some markers on the same slice to see that RSPO2 & 3 are expressed adjacent to the highlighted position.
+
+```{r, fig.height=4, fig.width=6}
+plot_expression('E13', slices = 6, genes = c('RSPO2', 'RSPO3', 'TTR', 'SPINT2'))
+```
+

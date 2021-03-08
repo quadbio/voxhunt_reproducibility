@@ -5,7 +5,7 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir='/local1/USERS/jfleck/data/PUBLIC_ORGANOIDS')
+knitr::opts_knit$set(root.dir='/links/groups/treutlein/USERS/jfleck/data/PUBLIC_ORGANOIDS')
 ```
 
 This notebook reproduces the main analyses from figure 6 of the manuscript. First we import the necessary packages.
@@ -23,6 +23,7 @@ Now we set up some colors and load the data. The loaded seurat object contains m
 
 ```{r}
 data("voxel_meta")
+load_aba_data('voxhunt_data/')
 # Subset E13.5 from meta
 e13_meta <- voxel_meta %>% 
     filter(stage=='E13')
@@ -57,20 +58,29 @@ plot_map(mayer_voxmap, view='slice', annotation_level = 'ge_annot',
     annotation_colors = ge_colors, slices=c(13,18))
 ```
 
-In the same way, we can also map the organoid data. Here we found that we need some more genes to properly map the data, so 
+In the same way, we can also map the organoid data. Here we found that we need some more genes to properly map the data, so we additionally use genes obtained from DE between newly annotated structures.
 
 ```{r}
+# Create new annotation column
+e13_meta <- e13_meta %>% 
+  mutate(fine_annot=ifelse(is.na(ge_annot), custom_3, ge_annot))
+# DE between annotated structures
+struct_de <- structure_markers('E13', structure_groups = e13_meta$fine_annot)
+struct_markers <- struct_de %>% 
+    group_by(group) %>% 
+    top_n(10, auc) %>% 
+    {unique(.$gene)}
+
 # Subset GE neurons
 kanton_ge_srt <- subset(kanton_srt, 
     line=='H9' & celltype%in%c('mge_in', 'lge_in')
 )
-kanton_voxmap <- voxel_map(kanton_ge_srt, group_name='ge_substruct', genes_use=mayer_markers)
+kanton_voxmap <- voxel_map(kanton_ge_srt, group_name='ge_substruct', genes_use=union(struct_markers, ge_markers))
 # Tweek annotation again
 kanton_voxmap$voxel_meta <- kanton_voxmap$voxel_meta %>% 
     mutate(ge_annot=ifelse(is.na(ge_annot), 'other', ge_annot))
 plot_map(kanton_voxmap, view='slice', annotation_level = 'ge_annot', 
     annotation_colors = ge_colors, slices=c(13,18))
-
 
 ```
 
